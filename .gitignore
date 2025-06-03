@@ -1,0 +1,6 @@
+temp/
+outputs/
+__pycache__/
+**/__pycache__/
+data/
+data/test

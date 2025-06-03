@@ -8,22 +8,9 @@ import torch.nn.functional as F
 class GCN_multi_scale(torch.nn.Module):
     def __init__(self, config):
         super(GCN_multi_scale, self).__init__()
+
         self.config = config
         self.num_statistical_features = config.hyperparameters.num_statistical_features
-        self.num_node_features = config.hyperparameters.num_node_features
-        self.num_classes = config.daataset.num_classes if config.task.binary == False else 2
-        self.hidden_size = config.hyperparameters.hidden_size
-        
-        # 修正GAT层头数和维度
-        self.agg1 = GCNConv(self.num_node_features, self.hidden_size)
-        self.agg2 = GCNConv(self.hidden_size, self.hidden_size)
-        self.agg3 = GCNConv(self.hidden_size, self.hidden_size)
-        
-        # 统计特征处理
-        self.statistical_nn = torch.nn.Linear(self.num_statistical_features, self.hidden_size)
-        
-        # 合并层
-        self.combine = torch.nn.Linear(self.hidden_size * 4, self.num_classes)
 
     def forward(self, x, edge_index, statistical, batch):
         # print(f"Input x shape: {x.shape}")

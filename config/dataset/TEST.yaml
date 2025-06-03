@@ -1,0 +1,4 @@
+name: "TEST"
+data_dir: "data/test"
+data_name: "test.jsonl"
+num_classes: 15

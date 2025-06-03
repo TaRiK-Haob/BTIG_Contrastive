@@ -1,24 +1,22 @@
 defaults:
-  - dataset: cic_ids_2017
+  - dataset: CIC-IDS-2017
+  - model: BTIG_GNN
   - _self_
-
-model:
-  name: "BTIG_GNN"
 
 task:
   binary: True
 
 hyperparameters:
-  learning_rate: 0.0001
-  weight_decay: 0.0001
+  learning_rate: 0.005
+  weight_decay: 0.5
   batch_size: 32
-  num_epochs: 63
+  epochs: 64
   dropout_rate: 0.1
   hidden_size: 64
   optimizer: "adam"
   device: "cuda"  # or "cpu" if CUDA is not available
   patience: 10
-  num_node_features: 1
+  num_node_features: 3
   num_statistical_features: 12
 
 parameters:
@@ -27,4 +25,4 @@ parameters:
 
 output_settings:
   checkpoint_dir: "checkpoints/"
-  best_model_path: "checkpoints/best_model.pth"
+  best_model_path: "${hydra:run.dir}/best_model.pth"

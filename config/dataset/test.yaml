@@ -1,5 +1,0 @@
-dataset:
-  name: "TEST"
-  data_dir: "data/test"
-  data_file: "test.jsonl"
-  num_classes: 15

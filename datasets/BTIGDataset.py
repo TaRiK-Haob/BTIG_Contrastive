@@ -3,22 +3,25 @@ import os
 import json
 import linecache
 import torch
-import BTIG
+from . import BTIG
 
 class BTIGDataset(Dataset):
     def __init__(self, config):
         super(BTIGDataset, self).__init__()
-        self.config = config
 
         self.length = 0
-        self.root = os.path.abspath(os.join(config.dataset.path, config.dataset.name))
-        
+        self.root = os.path.abspath(
+            os.path.join(config.dataset.data_dir, config.dataset.data_name))
 
         with open(self.root) as f:
             self.length = sum(1 for _ in f)
 
-        self.max_nodes = self.config.max_nodes
-        self.binary = self.config.binary
+        self.max_nodes = config.parameters.max_nodes
+        self.binary = config.task.binary
+        self.config_num_classes = config.dataset.num_classes
+        self.config_num_node_features = config.hyperparameters.num_node_features
+        self.config_num_statistical_features = config.hyperparameters.num_statistical_features
+        self.burst_threshold = config.parameters.burst_threshold
 
     def len(self):
         return self.length
@@ -40,13 +43,13 @@ class BTIGDataset(Dataset):
     @property
     def num_statistical_features(self) -> int:
         r"""Returns the number of statistical_features per node in the dataset."""
-        return self.config.num_statistical_features
+        return self.config_num_statistical_features
     
     @property
     def num_node_features(self) -> int:
         r"""Returns the number of features per node in the dataset."""
 
-        return self.config.num_node_features
+        return self.config_num_node_features
     
     @property
     def num_classes(self) -> int:
@@ -54,8 +57,7 @@ class BTIGDataset(Dataset):
         if self.binary:
             return 2
         else:
-            return self.config.dataset.num_classes
-
+            return self.config_num_classes
 
     def get(self, idx):
         if idx < 0 or idx >= self.length:
@@ -63,13 +65,14 @@ class BTIGDataset(Dataset):
         
         line = self._get_line(idx)
 
-        line = line[:self.max_nodes]  # 限制最大节点数
-
-        g = BTIG.construct_BTIG([1 if x > 0 else -1 for x in line['pkt_len_seq']],
-                               line['pkt_ts_seq'], 
-                                [(i // 8) for i in line['pkt_len_seq']],
+        pkt_len_seq = line['pkt_len_seq'][:self.max_nodes]
+        pkt_ts_seq = line['pkt_ts_seq'][:self.max_nodes]
+        
+        g = BTIG.construct_BTIG([1 if x > 0 else -1 for x in pkt_len_seq],
+                               pkt_ts_seq,
+                                [(i // 8) for i in pkt_len_seq],
                                 line['label'],
-                                burst_threshold = self.config.burst_threshold)
+                                burst_threshold = self.burst_threshold)
 
         if self.binary and g.y:
             g.y = torch.tensor([1])

@@ -1,4 +1,0 @@
-dataset:
-  name: "CIC-IDS-2017"
-  data_dir: "data/CIC-IDS-2017/"
-  num_classes: 15

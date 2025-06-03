@@ -1,0 +1,4 @@
+name: "CIC-IDS-2017"
+data_dir: "data/CIC-IDS-2017"
+data_name: "CIC-IDS-2017.jsonl"
+num_classes: 15

@@ -1,0 +1,4 @@
+name: "USTC-TFC2016"
+data_dir: "data/USTC-TFC2016/"
+data_name: "USTC-TFC2016.jsonl"
+num_classes: 11
