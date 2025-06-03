@@ -1,0 +1,30 @@
+defaults:
+  - dataset: cic_ids_2017
+  - _self_
+
+model:
+  name: "BTIG_GNN"
+
+task:
+  binary: True
+
+hyperparameters:
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  batch_size: 32
+  num_epochs: 63
+  dropout_rate: 0.1
+  hidden_size: 64
+  optimizer: "adam"
+  device: "cuda"  # or "cpu" if CUDA is not available
+  patience: 10
+  num_node_features: 1
+  num_statistical_features: 12
+
+parameters:
+  max_nodes: 25
+  burst_threshold: 5
+
+output_settings:
+  checkpoint_dir: "checkpoints/"
+  best_model_path: "checkpoints/best_model.pth"

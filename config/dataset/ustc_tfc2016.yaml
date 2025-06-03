@@ -1,0 +1,4 @@
+dataset:
+  name: "USTC-TFC2016"
+  data_dir: "data/USTC-TFC2016/"
+  num_classes: 11
