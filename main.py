@@ -13,8 +13,7 @@ def main(cfg):
     
     train_loader, val_loader, test_loader = get_dataloader(cfg)
 
-    for batch_idx, (data1, data2) in enumerate(train_loader):
-        print(data1.x)
+    train_contrastive(model, train_loader, val_loader, cfg)
 
 if __name__ == "__main__":
     main()

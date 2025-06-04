@@ -1,5 +1,5 @@
 defaults:
-  - dataset: TEST
+  - dataset: CIC-IDS-2017
   - model: TIG_CONTRASTIVE
   - _self_
 

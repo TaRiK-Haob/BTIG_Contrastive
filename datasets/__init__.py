@@ -3,6 +3,10 @@ import torch
 import random
 import os
 from . import TIGDataset
+import logging
+import hydra
+
+logger = logging.getLogger(__name__)
 
 def _split_data(dataset, config, refresh=False):
     generator = torch.Generator().manual_seed(random.randint(0, 99999))
@@ -14,22 +18,22 @@ def _split_data(dataset, config, refresh=False):
     # 检查是否存在预处理后的数据集
     if os.path.exists(train_file) and os.path.exists(test_file) and os.path.exists(val_file):
         if refresh:
-            print('Refreshing dataset...')
+            logging.info('Refreshing dataset...')
             os.remove(train_file)
             os.remove(test_file)
             os.remove(val_file)
         else:
-            print('Loading existing dataset...')
+            logging.info('Loading existing dataset...')
         train_dataset = torch.load(train_file)
         test_dataset = torch.load(test_file)
         val_dataset = torch.load(val_file)
-        print('Dataset loaded')
+        logging.info('Dataset loaded')
 
     train_dataset, test_dataset, val_dataset = torch.utils.data.random_split(dataset, [0.7, 0.2, 0.1], generator=generator)  
     torch.save(train_dataset, train_file)
     torch.save(test_dataset, test_file)
     torch.save(val_dataset, val_file)
-    print('Dataset saved & Loaded')
+    logging.info('Dataset saved & Loaded')
 
     # 添加多进程加载
     num_workers = 4  # 根据CPU核心数调整
