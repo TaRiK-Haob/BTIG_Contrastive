@@ -1,10 +1,10 @@
 defaults:
-  - dataset: CIC-IDS-2017
-  - model: BTIG_GNN
+  - dataset: TEST
+  - model: TIG_CONTRASTIVE
   - _self_
 
 task:
-  binary: True
+  binary: False
 
 hyperparameters:
   learning_rate: 0.005

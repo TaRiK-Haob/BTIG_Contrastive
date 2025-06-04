@@ -1,8 +1,8 @@
-from . import BTIGDataset
 import torch_geometric
 import torch
 import random
 import os
+from . import TIGDataset
 
 def _split_data(dataset, config, refresh=False):
     generator = torch.Generator().manual_seed(random.randint(0, 99999))
@@ -57,5 +57,5 @@ def _split_data(dataset, config, refresh=False):
     return train_loader, test_loader, val_loader
 
 def get_dataloader(config):
-    dataset = BTIGDataset.BTIGDataset(config)
+    dataset = TIGDataset.TIGDataset(config)
     return _split_data(dataset, config)
