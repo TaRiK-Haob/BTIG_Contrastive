@@ -3,6 +3,9 @@ defaults:
   - model: TIG_CONTRASTIVE
   - _self_
 
+mode: "both"
+pretrained_model_path: ""
+
 task:
   binary: False
 
@@ -18,6 +21,10 @@ hyperparameters:
   patience: 10
   num_node_features: 3
   num_statistical_features: 12
+  finetune_lr: 0.0001  # 微调学习率，通常比预训练小
+  finetune_epochs: 50  # 微调轮数
+  freeze_encoder: False  # 是否冻结编码器参数
+  dropout: 0.5  # 分类器的dropout率
 
 parameters:
   max_nodes: 25
@@ -25,4 +32,5 @@ parameters:
 
 output_settings:
   checkpoint_dir: "checkpoints/"
-  best_model_path: "${hydra:run.dir}/best_model.pth"
+  best_model_path: "${hydra:run.dir}/best_pretrain_model.pth"
+  best_finetune_model: "${hydra:run.dir}/best_finetune_model.pth"

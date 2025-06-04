@@ -38,16 +38,20 @@ class TIG_SimCLR(torch.nn.Module):
             nn.Linear(self.hidden_size, self.projection_dim)
         )
 
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, batch, return_embedding=False):
         # 投影输入特征到hidden_size
         x = self.input_projection(x)
-        # 通过编码器
-        x = self.encoder(x, edge_index, batch)
-        # 投影到对比学习空间
-        x = self.projection_head(x)
-        # L2归一化，这对SimCLR很重要
-        x = F.normalize(x, dim=1)
-        return x
+        # 通过编码器获得图级表示
+        graph_embedding = self.encoder(x, edge_index, batch)
+        
+        if return_embedding:
+            # 返回编码器的原始输出（用于微调）
+            return graph_embedding
+        else:
+            # 通过投影头并归一化（用于对比学习）
+            x = self.projection_head(graph_embedding)
+            x = F.normalize(x, dim=1)
+            return x
 
 class ContrastiveLoss(nn.Module):
     def __init__(self, temperature=0.1):
@@ -90,25 +94,45 @@ class ContrastiveLoss(nn.Module):
         loss = F.cross_entropy(logits, labels)
         return loss
 
-class TIG_ContrastiveModel(nn.Module):
+class TIG_CONTRASTIVE(nn.Module):
     def __init__(self, config):
-        super(TIG_ContrastiveModel, self).__init__()
+        super(TIG_CONTRASTIVE, self).__init__()
+        self.config = config
         self.encoder = TIG_SimCLR(config)
         self.loss_fn = ContrastiveLoss(temperature=getattr(config.hyperparameters, 'temperature', 0.1))
         
-    def forward(self, data1, data2):
-        """
-        data1, data2: 两个增强的图数据
-        """
-        # 编码两个增强视图
-        z1 = self.encoder(data1.x, data1.edge_index, data1.batch)
-        z2 = self.encoder(data2.x, data2.edge_index, data2.batch)
+        # 添加分类头用于微调
+        self.num_classes = config.dataset.num_classes if not config.task.binary else 2
+        self.classifier = nn.Sequential(
+            nn.Linear(config.hyperparameters.hidden_size * 3, config.hyperparameters.hidden_size),
+            nn.ReLU(),
+            nn.Dropout(getattr(config.hyperparameters, 'dropout', 0.5)),
+            nn.Linear(config.hyperparameters.hidden_size, self.num_classes)
+        )
         
-        # 计算对比损失
-        loss = self.loss_fn(z1, z2)
+    def forward(self, data1, data2=None, mode='pretrain'):
+        """
+        mode: 'pretrain' for contrastive learning, 'finetune' for supervised learning
+        """
+        if mode == 'pretrain':
+            # 对比学习模式
+            z1 = self.encoder(data1.x, data1.edge_index, data1.batch)
+            z2 = self.encoder(data2.x, data2.edge_index, data2.batch)
+            loss = self.loss_fn(z1, z2)
+            return loss, z1, z2
         
-        return loss, z1, z2
+        elif mode == 'finetune':
+            # 微调模式 - 获取图级嵌入并通过分类器
+            graph_embedding = self.encoder(data1.x, data1.edge_index, data1.batch, return_embedding=True)
+            logits = self.classifier(graph_embedding)
+            return logits
+        
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
     
     def encode(self, x, edge_index, batch):
         """用于获取图的表示"""
-        return self.encoder(x, edge_index, batch)
+        return self.encoder(x, edge_index, batch, return_embedding=True)
+
+
+
