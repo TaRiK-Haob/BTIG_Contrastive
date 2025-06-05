@@ -7,6 +7,8 @@ import itertools
 import numpy as np
 # from my_utils.randomDelay import random_delay
 from my_utils.randomPadding import random_padding
+from my_utils.subgraphSampling import subgraph_sampling
+import random
 
 #* 添加突发内边
 def _get_intra_edge(burst_data):
@@ -92,6 +94,7 @@ def _construct_TIG(pkt_direct, pkt_feat, label = -1):
     #* return
     return data
 
+
 class TIGDataset(Dataset):
     def __init__(self, config):
         super(TIGDataset, self).__init__()
@@ -109,6 +112,20 @@ class TIGDataset(Dataset):
         self.config_num_node_features = config.hyperparameters.num_node_features
         self.config_num_statistical_features = config.hyperparameters.num_statistical_features
         self.burst_threshold = config.parameters.burst_threshold
+        self.config = config
+
+    def obfuscation(self, line, max_nodes):
+        if self.config.obfuscation.mode == "random_padding":
+            return random_padding(line, max_nodes, self.config.obfuscation.probability)
+        
+        if self.config.obfuscation.mode == "subgraph_sampling":
+            return subgraph_sampling(line, max_nodes, self.config.obfuscation.rate)
+        
+        if self.config.obfuscation.mode == "random_both":
+            if random.uniform(0, 1) < 0.5:
+                return subgraph_sampling(line, max_nodes, self.config.obfuscation.probability)
+            else:
+                return random_padding(line, max_nodes, self.config.obfuscation.rate)
 
     def len(self):
         return self.length
@@ -168,7 +185,8 @@ class TIGDataset(Dataset):
         
         line = self._get_line(idx)
 
-        line_aug = random_padding(line, self.max_nodes, 0.3)
+        line_aug = self.obfuscation(line, self.max_nodes)
+        # line_aug = random_padding(line, self.max_nodes, self.config.obfuscation.probility)
 
         g = self._build_graph(line)
         g_aug = self._build_graph(line_aug)

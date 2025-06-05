@@ -36,8 +36,8 @@ def _split_data(dataset, config, refresh=False):
     logging.info('Dataset saved & Loaded')
 
     # 添加多进程加载
-    num_workers = 4  # 根据CPU核心数调整
-    prefetch_factor = 4  # 预加载批次数
+    num_workers = 8  # 根据CPU核心数调整
+    prefetch_factor = 8  # 预加载批次数
     
     train_loader = torch_geometric.loader.DataLoader(train_dataset, 
                             batch_size=config.hyperparameters.batch_size, 

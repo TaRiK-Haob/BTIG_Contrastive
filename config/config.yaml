@@ -6,25 +6,31 @@ defaults:
 mode: "both"
 pretrained_model_path: ""
 
+obfuscation: 
+  mode: "random_both" # "random_padding" or "subgraph_sampling" or "random_both"
+  probability: 0.2  # 概率为0.5表示每个batch中有50%的概率进行obfuscation
+  rate: 0.8
+
 task:
   binary: False
 
 hyperparameters:
   learning_rate: 0.005
-  weight_decay: 0.5
-  batch_size: 32
-  epochs: 64
+  weight_decay: 0.1
+  batch_size: 2048
+  epochs: 500
   dropout_rate: 0.1
-  hidden_size: 64
+  hidden_size: 128
   optimizer: "adam"
   device: "cuda"  # or "cpu" if CUDA is not available
   patience: 10
   num_node_features: 3
   num_statistical_features: 12
+
   finetune_lr: 0.0001  # 微调学习率，通常比预训练小
   finetune_epochs: 50  # 微调轮数
-  freeze_encoder: False  # 是否冻结编码器参数
-  dropout: 0.5  # 分类器的dropout率
+  freeze_encoder: True  # 是否冻结编码器参数
+  dropout: 0.2  # 分类器的dropout率
 
 parameters:
   max_nodes: 25
@@ -34,3 +40,4 @@ output_settings:
   checkpoint_dir: "checkpoints/"
   best_model_path: "${hydra:run.dir}/best_pretrain_model.pth"
   best_finetune_model: "${hydra:run.dir}/best_finetune_model.pth"
+
