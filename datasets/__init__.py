@@ -3,6 +3,7 @@ import torch
 import random
 import os
 from . import TIGDataset
+from . import FGDataset
 import logging
 import hydra
 
@@ -61,5 +62,10 @@ def _split_data(dataset, config, refresh=False):
     return train_loader, test_loader, val_loader
 
 def get_dataloader(config):
-    dataset = TIGDataset.TIGDataset(config)
-    return _split_data(dataset, config)
+    if config.model.graph == 'TIG':
+        dataset = TIGDataset.TIGDataset(config)
+        return _split_data(dataset, config)
+    
+    if config.model.graph == 'FG':
+        dataset = FGDataset.FGDataset(config)
+        return _split_data(dataset, config)
