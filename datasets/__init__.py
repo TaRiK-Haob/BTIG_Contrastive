@@ -62,10 +62,10 @@ def _split_data(dataset, config, refresh=False):
     return train_loader, test_loader, val_loader
 
 def get_dataloader(config):
-    if config.model.graph == 'TIG':
+    if config.graph == 'TIG':
         dataset = TIGDataset.TIGDataset(config)
         return _split_data(dataset, config)
     
-    if config.model.graph == 'FG':
+    if config.graph == 'FG':
         dataset = FGDataset.FGDataset(config)
         return _split_data(dataset, config)

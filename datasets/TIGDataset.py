@@ -5,9 +5,8 @@ import linecache
 import torch
 import itertools
 import numpy as np
-# from my_utils.randomDelay import random_delay
-from my_utils.randomPadding import random_padding
-from my_utils.subgraphSampling import subgraph_sampling
+from my_utils.TrafficFlowAugmentation import TrafficFlowAugmentation
+from my_utils.TrafficGraphAugmentation import TrafficGraphAugmentation
 import random
 
 #* 添加突发内边
@@ -28,7 +27,6 @@ def _get_inter_edge(burst1, burst2, fully_connect):
     else:
         result = list(itertools.permutations([burst1[0], burst2[0]], 2)) + list(itertools.permutations([burst1[-1], burst2[-1]], 2))
     return list(set(result))
-
 
 def _construct_TIG(pkt_direct, pkt_feat, label = -1):
 
@@ -94,7 +92,6 @@ def _construct_TIG(pkt_direct, pkt_feat, label = -1):
     #* return
     return data
 
-
 class TIGDataset(Dataset):
     def __init__(self, config):
         super(TIGDataset, self).__init__()
@@ -114,18 +111,8 @@ class TIGDataset(Dataset):
         self.burst_threshold = config.parameters.burst_threshold
         self.config = config
 
-    def obfuscation(self, line, max_nodes):
-        if self.config.obfuscation.mode == "random_padding":
-            return random_padding(line, max_nodes, self.config.obfuscation.probability)
-        
-        if self.config.obfuscation.mode == "subgraph_sampling":
-            return subgraph_sampling(line, max_nodes, self.config.obfuscation.rate)
-        
-        if self.config.obfuscation.mode == "random_both":
-            if random.uniform(0, 1) < 0.5:
-                return subgraph_sampling(line, max_nodes, self.config.obfuscation.probability)
-            else:
-                return random_padding(line, max_nodes, self.config.obfuscation.rate)
+        self.aug_stage = config.obfuscation.stage
+
 
     def len(self):
         return self.length
@@ -183,21 +170,23 @@ class TIGDataset(Dataset):
         if idx < 0 or idx >= self.length:
             raise IndexError("Index out of range")
         
+        # original sample
         line = self._get_line(idx)
+        line_aug1 = line_aug2 = line
 
-        line_aug = self.obfuscation(line, self.max_nodes)
-        # line_aug = random_padding(line, self.max_nodes, self.config.obfuscation.probility)
+        # stage1 augmentation
+        if self.config.obfuscation.stage == "stage1" or self.config.obfuscation.stage == "stage3":
+            line_aug1 = TrafficFlowAugmentation(line)
+            line_aug2 = TrafficFlowAugmentation(line)
 
+        # * Build the original graph and the augmented graph
         g = self._build_graph(line)
-        g_aug = self._build_graph(line_aug)
+        g_aug1 = self._build_graph(line_aug1)
+        g_aug2 = self._build_graph(line_aug2)
 
-        return g, g_aug
+        # stage2 augmentation
+        if self.config.obfuscation.stage == "stage2" or self.config.obfuscation.stage == "stage3":
+            g_aug1 = TrafficGraphAugmentation(g_aug1, self.config)
+            g_aug2 = TrafficGraphAugmentation(g_aug2, self.config)
 
-
-
-
-
-
-        
-
-
+        return g_aug1, g_aug2

@@ -39,7 +39,7 @@ def _construct_TIG(pkt_direct, pkt_feat, label = -1):
     for i, f in enumerate(pkt_feat):
         #* 包长作为节点特征
         # node_feat.append([pkt_feat[i], i])
-        node_feat.append([pkt_feat[i]])
+        node_feat.append([pkt_direct[i] * pkt_feat[i]])
         node.append(i)
 
     #* Divide into burst
