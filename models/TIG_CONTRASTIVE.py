@@ -19,8 +19,12 @@ class TIG_SimCLR(torch.nn.Module):
             [
                 (torch_geometric.nn.GCNConv(self.hidden_size, self.hidden_size), 'x, edge_index -> x1'),
                 (torch.nn.ReLU(inplace=True)),
+                (torch.nn.Dropout(config.hyperparameters.dropout)),
+                
                 (torch_geometric.nn.GCNConv(self.hidden_size, self.hidden_size), 'x1, edge_index -> x2'),
                 (torch.nn.ReLU(inplace=True)),
+                (torch.nn.Dropout(config.hyperparameters.dropout)),
+
                 (torch_geometric.nn.GCNConv(self.hidden_size, self.hidden_size), 'x2, edge_index -> x3'),
                 (torch.nn.ReLU(inplace=True)),
 
@@ -63,9 +67,10 @@ class ContrastiveLoss(nn.Module):
         z_i, z_j: 两个增强视图的表示 [batch_size, projection_dim]
         """
         batch_size = z_i.shape[0]
-        
+
         # 计算相似度矩阵
         representations = torch.cat([z_i, z_j], dim=0)  # [2*batch_size, projection_dim]
+        representations = F.normalize(representations, dim=1)  # 归一化
         similarity_matrix = torch.matmul(representations, representations.T)  # [2*batch_size, 2*batch_size]
         
         # 应用温度参数
@@ -93,6 +98,7 @@ class ContrastiveLoss(nn.Module):
         
         loss = F.cross_entropy(logits, labels)
         return loss
+
 
 class TIG_CONTRASTIVE(nn.Module):
     def __init__(self, config):

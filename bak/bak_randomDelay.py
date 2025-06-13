@@ -3,7 +3,7 @@
 
 import random
 
-def random_delay(flow, max_nodes = 128, probability=0.2):
+def random_delay(flow, max_nodes = 128, probability=0.5):
     '''
     输入：flow，概率阈值probability， max_nodes
 

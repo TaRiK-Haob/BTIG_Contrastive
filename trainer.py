@@ -5,6 +5,7 @@ import hydra
 import logging
 from models import get_model
 from datasets import get_dataloader
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,10 @@ def train_contrastive(model, train_loader, val_loader, config):
 
     device = torch.device(config.hyperparameters.device if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
+
+    torch.save(model.state_dict(), f'{config.output_settings.initial_model_path}')
+    logger.info(f'初始模型已保存: {config.output_settings.initial_model_path}')
+
     lr = config.hyperparameters.learning_rate
     if config.hyperparameters.optimizer == 'adam':
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -156,18 +161,26 @@ def train_contrastive(model, train_loader, val_loader, config):
 
 def finetune_supervised(model, train_loader, val_loader, config):
     """
-    有监督微调函数
+    有监督微调函数 - 支持 n-shot learning
     """
-    logger.info("==================Start Fine-tuning==================")
+    logger.info("==================Start Fine-tuning (N-shot Learning)==================")
+    
+    # 获取 n-shot 参数
+    n_shot = config.hyperparameters.n_shot
+    logger.info(f"使用 {n_shot}-shot learning")
+    
+    # 创建 n-shot 数据集
+    n_shot_samples, n_shot_labels = create_n_shot_dataset(train_loader, n_shot)
     
     device = torch.device(config.hyperparameters.device if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
     
     # 微调学习率，通常比预训练小
-    finetune_lr = getattr(config.hyperparameters, 'finetune_lr', config.hyperparameters.learning_rate * 0.1)
+    finetune_lr = config.hyperparameters.finetune_lr
     
     # 选择性冻结编码器参数（可选）
-    freeze_encoder = getattr(config.hyperparameters, 'freeze_encoder', False)
+    freeze_encoder = config.hyperparameters.freeze_encoder
+
     if freeze_encoder:
         logger.info("Freezing encoder parameters...")
         for param in model.encoder.parameters():
@@ -203,15 +216,24 @@ def finetune_supervised(model, train_loader, val_loader, config):
         epoch_fet_time = 0
         epoch_cct_time = 0
         
-        for batch_idx, (data, _) in enumerate(train_loader):
-
-            data = data.to(device)
-            labels = data.y.to(device)
-
+        # 对 n-shot 样本进行随机打乱
+        indices = list(range(len(n_shot_samples)))
+        random.shuffle(indices)
+        
+        # 使用 n-shot 样本进行训练
+        for i in indices:
+            sample = n_shot_samples[i]
+            label = torch.tensor([n_shot_labels[i]], dtype=torch.long).to(device)
+            
+            # 将样本移到设备
+            sample = sample.to(device)
+            
             # 前向传播
             fet_start_time = time.time()
-            logits = model(data, mode='finetune')
-            loss = criterion(logits, labels)
+            # 对于图数据，直接传入sample，不需要添加batch维度
+            # PyTorch Geometric的模型会自动处理单个图
+            logits = model(sample, mode='finetune')
+            loss = criterion(logits, label)
             fet_end_time = time.time()
             
             # 反向传播
@@ -225,8 +247,8 @@ def finetune_supervised(model, train_loader, val_loader, config):
             
             # 计算准确率
             _, predicted = torch.max(logits.data, 1)
-            train_total += labels.size(0)
-            train_correct += (predicted == labels).sum().item()
+            train_total += label.size(0)
+            train_correct += (predicted == label).sum().item()
             
             epoch_fet_time += (fet_end_time - fet_start_time)
             epoch_cct_time += (cct_end_time - cct_start_time)
@@ -242,7 +264,6 @@ def finetune_supervised(model, train_loader, val_loader, config):
         
         with torch.no_grad():
             for batch_idx, (data, _) in enumerate(val_loader):
-
                 data = data.to(device)
                 labels = data.y.to(device)
                 
@@ -256,7 +277,7 @@ def finetune_supervised(model, train_loader, val_loader, config):
                 val_total += labels.size(0)
                 val_correct += (predicted == labels).sum().item()
         
-        avg_train_loss = total_train_loss / len(train_loader)
+        avg_train_loss = total_train_loss / len(n_shot_samples)
         avg_val_loss = total_val_loss / len(val_loader)
         train_acc = 100 * train_correct / train_total
         val_acc = 100 * val_correct / val_total
@@ -280,7 +301,7 @@ def finetune_supervised(model, train_loader, val_loader, config):
     total_train_end_time = time.time()
     total_train_time = total_train_end_time - total_train_start_time
     
-    logger.info(f"\n微调时间统计:")
+    logger.info(f"\n{n_shot}-shot 微调时间统计:")
     logger.info(f"总微调时间: {total_train_time:.4f}s")
     logger.info(f"总FET时间(正向传播): {total_fet_time:.4f}s")
     logger.info(f"总CCT时间(反向传播): {total_cct_time:.4f}s")
@@ -289,11 +310,38 @@ def finetune_supervised(model, train_loader, val_loader, config):
     
     # 保存微调后的模型
     torch.save(best_model_state, f'{config.output_settings.best_finetune_model}')
-    logger.info(f'最佳模型已保存: {config.output_settings.best_finetune_model}')
-
-    # finetune_model_path = getattr(config.output_settings, 'finetune_model_path', 'best_finetune_model.pth')
-    # torch.save(best_model_state, finetune_model_path)
-    # logger.info(f'最佳微调模型已保存: {finetune_model_path}')
+    logger.info(f'最佳{n_shot}-shot模型已保存: {config.output_settings.best_finetune_model}')
     logger.info(f'最佳验证准确率: {best_val_acc:.2f}%')
     
     return total_train_time, total_fet_time, total_cct_time, best_val_acc
+
+
+
+# 从训练数据中为每个类别选择 n 个样本
+def create_n_shot_dataset(loader, n_shot):
+    class_samples = {}
+    
+    # 收集所有样本并按类别分组
+    for batch_idx, (data, _) in enumerate(loader):
+        for i in range(len(data)):
+            sample = data[i]
+            label = sample.y.item()
+            
+            if label not in class_samples:
+                class_samples[label] = []
+            
+            if len(class_samples[label]) < n_shot:
+                class_samples[label].append(sample)
+    
+    # 创建 n-shot 数据集
+    n_shot_samples = []
+    n_shot_labels = []
+    
+    for label, samples in class_samples.items():
+        logger.info(f"类别 {label}: 选择了 {len(samples)} 个样本")
+        for sample in samples:
+            n_shot_samples.append(sample)
+            n_shot_labels.append(label)
+    
+    logger.info(f"总共选择了 {len(n_shot_samples)} 个样本用于 {n_shot}-shot learning")
+    return n_shot_samples, n_shot_labels
