@@ -38,6 +38,10 @@ class Trainer:
         if self.model_name == 'TIG_CONTRASTIVE':
             logger.info("Using TIG_CONTRASTIVE model for training.")
             return train_contrastive(self.model, self.train_loader, self.val_loader, self.config)
+        
+        if self.model_name == 'TESTMODEL':
+            logger.info("Using TESTMODEL model for training.")
+            return train_contrastive(self.model, self.train_loader, self.val_loader, self.config)
         else:
             raise ValueError(f"Unsupported model: {self.config.model.name}. Please check your configuration.")
 
@@ -54,6 +58,17 @@ class Trainer:
                 self.model.load_state_dict(torch.load(pretrained_model_path, map_location='cpu'))
             
             return finetune_supervised(self.model, self.train_loader, self.val_loader, self.config)
+        
+        if self.model_name == 'TESTMODEL':
+            logger.info("Starting supervised fine-tuning...")
+            
+            # 如果提供了预训练模型路径，加载预训练权重
+            if pretrained_model_path:
+                logger.info(f"Loading pretrained weights from {pretrained_model_path}")
+                self.model.load_state_dict(torch.load(pretrained_model_path, map_location='cpu'))
+            
+            return finetune_supervised(self.model, self.train_loader, self.val_loader, self.config)
+
         else:
             raise ValueError(f"Unsupported model for fine-tuning: {self.model_name}")
 

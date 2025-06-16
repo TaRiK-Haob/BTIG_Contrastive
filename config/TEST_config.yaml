@@ -1,6 +1,6 @@
 defaults:
-  - dataset: CIC-IDS-2017
-  - model: TIG_CONTRASTIVE
+  - dataset: USTC-TFC2016
+  - model: TESTMODEL
   - _self_
 
 graph: "TIG" # "TIG" or "FG"
@@ -27,6 +27,7 @@ hyperparameters:
   patience: 10
   num_node_features: 3
   num_statistical_features: 12
+
 
   finetune_lr: 0.0001  # 微调学习率，通常比预训练小
   finetune_epochs: 50  # 微调轮数

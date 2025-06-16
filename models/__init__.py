@@ -1,4 +1,5 @@
 from . import TIG_CONTRASTIVE
+from . import TESTMODEL
 
 def get_model(config):
     """
@@ -7,5 +8,7 @@ def get_model(config):
     :return: 模型实例
     """
     if config.model.name == 'TIG_CONTRASTIVE':
-        model = TIG_CONTRASTIVE.TIG_CONTRASTIVE(config)
-        return model
+        return TIG_CONTRASTIVE.TIG_CONTRASTIVE(config)
+    
+    if config.model.name == 'TESTMODEL':
+        return TESTMODEL.TESTMODEL(config)

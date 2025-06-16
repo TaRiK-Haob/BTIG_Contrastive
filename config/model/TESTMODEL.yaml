@@ -1,0 +1,7 @@
+name: "TESTMODEL"
+jk_type: "lstm"  # "cat" or "lstm" or "max" or "attention"
+encoder_type: "Encoder2" # "Encoder1" or "Encoder2" or "Encoder3"
+
+# Encoder1: GIN + GCN + JK-Net
+# Encoder2: GCN + JK-Net aggregations
+# Encoder3: GCN + JK-Net + residual connections
