@@ -3,7 +3,7 @@ defaults:
   - model: TESTMODEL
   - _self_
 
-graph: "TIG" # "TIG" or "FG"
+graph: "FG" # "TIG" or "FG"
 mode: "both" # "pretrain" or "finetune" or "both"
 pretrained_model_path: ""
 
@@ -33,7 +33,7 @@ hyperparameters:
   finetune_epochs: 50  # 微调轮数
   freeze_encoder: True  # 是否冻结编码器参数
   dropout: 0.3  # 分类器的dropout率
-  n_shot: 20
+  n_shot: 30
 
 parameters:
   max_nodes: 25

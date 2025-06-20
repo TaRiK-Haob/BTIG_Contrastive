@@ -202,7 +202,142 @@ class Encoder3(torch.nn.Module):
 
                 (lambda res_x1, res_x2, res_x3: [res_x1, res_x2, res_x3], 'res_x1, res_x2, res_x3 -> xs'),
 
-                (torch_geometric.nn.models.JumpingKnowledge(mode=config.hyperparameters.jk_type), 'xs -> x'),
+                (torch_geometric.nn.models.JumpingKnowledge(mode=config.model.jk_type), 'xs -> x'),
+                (torch_geometric.nn.global_mean_pool, 'x, batch -> x')
+            ]
+        )
+        
+        # 投影头用于对比学习
+        self.projection_head = nn.Sequential(
+            nn.Linear(self.hidden_size * 3, self.hidden_size),  # JumpingKnowledge concatenation
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.projection_dim)
+        )
+
+    def forward(self, x, edge_index, batch, return_embedding=False):
+        # 投影输入特征到hidden_size
+        x = self.input_projection(x)
+        # 通过编码器获得图级表示
+        graph_embedding = self.encoder(x, edge_index, batch)
+        
+        if return_embedding:
+            # 返回编码器的原始输出（用于微调）
+            return graph_embedding
+        else:
+            # 通过投影头并归一化（用于对比学习）
+            x = self.projection_head(graph_embedding)
+            x = F.normalize(x, dim=1)
+            return x
+
+class Encoder4(torch.nn.Module):
+    "测试 GIN + GCN + JK-Net + residual"
+    def __init__(self, config):
+        super(Encoder4, self).__init__()
+        self.config = config
+        self.num_node_features = config.hyperparameters.num_node_features
+        self.num_classes = config.dataset.num_classes if config.task.binary == False else 2
+        self.hidden_size = config.hyperparameters.hidden_size
+        self.projection_dim = getattr(config.hyperparameters, 'projection_dim', 128)
+        
+        # 添加输入投影层，将节点特征映射到hidden_size
+        self.input_projection = nn.Linear(self.num_node_features, self.hidden_size)
+
+        self.encoder = torch_geometric.nn.Sequential('x, edge_index, batch',
+            [
+                # 第一层使用GIN
+                (torch_geometric.nn.GINConv(nn.Sequential(
+                    nn.Linear(self.hidden_size, self.hidden_size),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(self.hidden_size, self.hidden_size)
+                )), 'x, edge_index -> x1'),
+                (lambda x, x1: x + x1, 'x, x1 -> res_x1'),  # 残差连接
+                (torch.nn.Dropout(config.hyperparameters.dropout)),
+                
+                
+                (torch_geometric.nn.GCNConv(self.hidden_size, self.hidden_size), 'res_x1, edge_index -> x2'),
+                (lambda res_x1, x2: res_x1 + x2, 'res_x1, x2 -> res_x2'),  # 残差连接
+                (torch.nn.ReLU(inplace=True)),
+                (torch.nn.LayerNorm(self.hidden_size)),
+                (torch.nn.Dropout(config.hyperparameters.dropout)),
+
+                (torch_geometric.nn.GCNConv(self.hidden_size, self.hidden_size), 'res_x2, edge_index -> x3'),
+                (lambda res_x2, x3: res_x2 + x3, 'res_x2, x3 -> res_x3'),  # 残差连接
+                (torch.nn.ReLU(inplace=True)),
+                (torch.nn.LayerNorm(self.hidden_size)),
+
+                (lambda res_x1, res_x2, res_x3: [res_x1, res_x2, res_x3], 'res_x1, res_x2, res_x3 -> xs'),
+
+                (torch_geometric.nn.models.JumpingKnowledge(mode='cat'), 'xs -> x'),
+                (torch_geometric.nn.global_mean_pool, 'x, batch -> x')
+            ]
+        )
+        
+        # 投影头用于对比学习
+        self.projection_head = nn.Sequential(
+            nn.Linear(self.hidden_size * 3, self.hidden_size),  # JumpingKnowledge concatenation
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.projection_dim)
+        )
+
+    def forward(self, x, edge_index, batch, return_embedding=False):
+        # 投影输入特征到hidden_size
+        x = self.input_projection(x)
+        # 通过编码器获得图级表示
+        graph_embedding = self.encoder(x, edge_index, batch)
+        
+        if return_embedding:
+            # 返回编码器的原始输出（用于微调）
+            return graph_embedding
+        else:
+            # 通过投影头并归一化（用于对比学习）
+            x = self.projection_head(graph_embedding)
+            x = F.normalize(x, dim=1)
+            return x
+
+class Encoder5(torch.nn.Module):
+    "测试 GIN + JK-Net + residual"
+    def __init__(self, config):
+        super(Encoder5, self).__init__()
+        self.config = config
+        self.num_node_features = config.hyperparameters.num_node_features
+        self.num_classes = config.dataset.num_classes if config.task.binary == False else 2
+        self.hidden_size = config.hyperparameters.hidden_size
+        self.projection_dim = getattr(config.hyperparameters, 'projection_dim', 128)
+        
+        # 添加输入投影层，将节点特征映射到hidden_size
+        self.input_projection = nn.Linear(self.num_node_features, self.hidden_size)
+
+        self.encoder = torch_geometric.nn.Sequential('x, edge_index, batch',
+            [
+                # 第一层使用GIN
+                (torch_geometric.nn.GINConv(nn.Sequential(
+                    nn.Linear(self.hidden_size, self.hidden_size),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(self.hidden_size, self.hidden_size)
+                )), 'x, edge_index -> x1'),
+                (lambda x, x1: x + x1, 'x, x1 -> res_x1'),  # 残差连接
+                (torch.nn.Dropout(config.hyperparameters.dropout)),
+                
+                (torch_geometric.nn.GINConv(nn.Sequential(
+                    nn.Linear(self.hidden_size, self.hidden_size),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(self.hidden_size, self.hidden_size)
+                )), 'res_x1, edge_index -> x2'),
+                (lambda res_x1, x2: res_x1 + x2, 'res_x1, x2 -> res_x2'),  # 残差连接
+                (torch.nn.ReLU(inplace=True)),
+                (torch.nn.Dropout(config.hyperparameters.dropout)),
+
+                (torch_geometric.nn.GINConv(nn.Sequential(
+                    nn.Linear(self.hidden_size, self.hidden_size),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(self.hidden_size, self.hidden_size)
+                )), 'res_x2, edge_index -> x3'),
+                (lambda res_x2, x3: res_x2 + x3, 'res_x2, x3 -> res_x3'),  # 残差连接
+                (torch.nn.ReLU(inplace=True)),
+
+                (lambda res_x1, res_x2, res_x3: [res_x1, res_x2, res_x3], 'res_x1, res_x2, res_x3 -> xs'),
+
+                (torch_geometric.nn.models.JumpingKnowledge(mode='cat'), 'xs -> x'),
                 (torch_geometric.nn.global_mean_pool, 'x, batch -> x')
             ]
         )
@@ -281,6 +416,10 @@ class TESTMODEL(nn.Module):
             self.encoder = Encoder2(config)
         elif config.model.encoder_type == 'Encoder3':
             self.encoder = Encoder3(config)
+        elif config.model.encoder_type == 'Encoder4':
+            self.encoder = Encoder4(config)
+        elif config.model.encoder_type == 'Encoder5':
+            self.encoder = Encoder5(config)
         else:
             raise ValueError(f"Unknown encoder type: {config.hyperparameters.encoder_type}")
 
@@ -290,7 +429,7 @@ class TESTMODEL(nn.Module):
         self.num_classes = config.dataset.num_classes if not config.task.binary else 2
         
         self.classifier = nn.Sequential(
-            nn.Linear(config.hyperparameters.hidden_size, config.hyperparameters.hidden_size),
+            nn.Linear(config.hyperparameters.hidden_size * 3, config.hyperparameters.hidden_size),
             nn.ReLU(),
             nn.Dropout(getattr(config.hyperparameters, 'dropout', 0.5)),
             nn.Linear(config.hyperparameters.hidden_size, self.num_classes)

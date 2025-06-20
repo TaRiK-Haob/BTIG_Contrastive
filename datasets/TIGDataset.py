@@ -6,7 +6,7 @@ import torch
 import itertools
 import numpy as np
 from my_utils.TrafficFlowAugmentation import TrafficFlowAugmentation
-from my_utils.TrafficGraphAugmentation import TrafficGraphAugmentation
+import my_utils.TrafficGraphAugmentation as TGA
 import random
 
 #* 添加突发内边
@@ -179,14 +179,17 @@ class TIGDataset(Dataset):
             line_aug1 = TrafficFlowAugmentation(line)
             line_aug2 = TrafficFlowAugmentation(line)
 
-        # * Build the original graph and the augmented graph
-        g = self._build_graph(line)
-        g_aug1 = self._build_graph(line_aug1)
-        g_aug2 = self._build_graph(line_aug2)
-
         # stage2 augmentation
         if self.config.obfuscation.stage == "stage2" or self.config.obfuscation.stage == "stage3":
-            g_aug1 = TrafficGraphAugmentation(g_aug1, self.config)
-            g_aug2 = TrafficGraphAugmentation(g_aug2, self.config)
+            line_aug1 = TGA.SubGraph(line_aug1)
+            line_aug1 = TGA.SubGraph(line_aug2)
+
+            g_aug1 = TGA.feature_masking(self._build_graph(line_aug1))
+            g_aug2 = TGA.feature_masking(self._build_graph(line_aug2))
+
+        # * Build the original graph and the augmented graph
+        # g = self._build_graph(line)
+        # g_aug1 = self._build_graph(line_aug1)
+        # g_aug2 = self._build_graph(line_aug2)
 
         return g_aug1, g_aug2

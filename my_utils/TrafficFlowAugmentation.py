@@ -12,7 +12,7 @@ def TrafficFlowAugmentation(flow, probability=0.5):
     
     for i in range(4,len(pkt_len_seq)):
         q = random.uniform(0, 1)
-        if q <= probability:
+        if q <= 0.5:
             #生成包
             z = random.randint(40, 1500)
             a = random.uniform(0, 0.2)
@@ -23,7 +23,7 @@ def TrafficFlowAugmentation(flow, probability=0.5):
             aug_iat_seq.append(a)
 
         r = random.uniform(0, 1)
-        if r <= probability:
+        if r <= 0.5:
             theta = random.uniform(0, 0.2)
             pkt_iat_seq[i] += theta
             

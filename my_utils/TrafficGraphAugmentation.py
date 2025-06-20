@@ -2,24 +2,27 @@ import random
 import torch_geometric.data
 import torch
 
-def TrafficGraphAugmentation(graph: torch_geometric.data.Data, config):
+def SubGraph(line):
     """
     Augments a traffic graph by applying random feature transformations.
     """
-    num = graph.num_nodes
+    num = len(line['pkt_len_seq'])
 
     if num <= 4:
-        return graph
+        return line
 
     q = random.uniform(0.8, 0.9)
     num = int(num * q)
 
-    subset = torch.tensor([i for i in range(num)])
+    line['pkt_len_seq'] = line['pkt_len_seq'][:num]
+    line['pkt_ts_seq'] = line['pkt_ts_seq'][:num]
 
-    return graph.subgraph(subset)
+    # result = _feature_masking(result)
+
+    return line
 
 
-def _feature_masking(graph: torch_geometric.data.Data, probability):
+def feature_masking(graph: torch_geometric.data.Data, probability = 0.2):
     """
     Randomly masks some features of the nodes in the graph.
     

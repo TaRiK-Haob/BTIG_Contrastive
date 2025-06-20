@@ -5,8 +5,8 @@ import linecache
 import torch
 import itertools
 import numpy as np
-# from my_utils.randomPadding import random_padding
-# from my_utils.subgraphSampling import subgraph_sampling
+from my_utils.TrafficFlowAugmentation import TrafficFlowAugmentation
+import my_utils.TrafficGraphAugmentation as TGA
 import random
 
 #* 添加突发内边
@@ -29,7 +29,7 @@ def _get_inter_edge(burst1, burst2):
     return list(set(result))
 
 
-def _construct_TIG(pkt_direct, pkt_feat, label = -1):
+def _construct_FG(pkt_direct, pkt_feat, label = -1):
 
     node_feat = []
     node = []
@@ -166,7 +166,7 @@ class FGDataset(Dataset):
         pkt_len_seq = line['pkt_len_seq'][:self.max_nodes]
         # pkt_ts_seq = line['pkt_ts_seq'][:self.max_nodes]
         
-        g = _construct_TIG([1 if x > 0 else -1 for x in pkt_len_seq],
+        g = _construct_FG([1 if x > 0 else -1 for x in pkt_len_seq],
                                 [(i // 8) for i in pkt_len_seq],
                                 line['label'])
         if self.binary and g.y:
@@ -183,21 +183,27 @@ class FGDataset(Dataset):
             raise IndexError("Index out of range")
         
         line = self._get_line(idx)
+        line_aug1 = line_aug2 = line
 
-        line_aug = line.copy()
-        # line_aug = self.obfuscation(line, self.max_nodes)
-        # line_aug = random_padding(line, self.max_nodes, self.config.obfuscation.probility)
-
-        g = self._build_graph(line)
-        g_aug = self._build_graph(line_aug)
-
-        return g, g_aug
+        # stage1 augmentation
+        if self.config.obfuscation.stage == "stage1" or self.config.obfuscation.stage == "stage3":
+            line_aug1 = TrafficFlowAugmentation(line)
+            line_aug2 = TrafficFlowAugmentation(line)
 
 
+        # stage2 augmentation
+        if self.config.obfuscation.stage == "stage2" or self.config.obfuscation.stage == "stage3":
+            line_aug1 = TGA.SubGraph(line_aug1)
+            line_aug1 = TGA.SubGraph(line_aug2)
 
+            g_aug1 = TGA.feature_masking(self._build_graph(line_aug1))
+            g_aug2 = TGA.feature_masking(self._build_graph(line_aug2))
+
+
+        return g_aug1, g_aug2
 
 if __name__ == "__main__":
-    g = _construct_TIG([1, 1, -1, -1, 1, 1, 1, -1, 1, 1],
+    g = _construct_FG([1, 1, -1, -1, 1, 1, 1, -1, 1, 1],
                    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
                    label=1)
     
