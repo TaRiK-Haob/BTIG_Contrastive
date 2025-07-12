@@ -24,7 +24,7 @@ class Trainer:
 
         self.config = config
 
-        if train_loader is None or val_loader is None:
+        if train_loader is None and val_loader is None:
             logger.info("Train and validation loaders not provided. Loading dataset from configuration...")
             logger.info("Loading dataset...")
             self.train_loader, _, self.val_loader = get_dataloader(config)
@@ -35,10 +35,12 @@ class Trainer:
             self.val_loader = val_loader
 
     def train(self):
+        if self.val_loader is None:
+            logger.info("Validation loader not provided. Using train loader for training.")
+            return train_contrastive(self.model, self.train_loader, self.config)
         if self.model_name == 'TIG_CONTRASTIVE':
             logger.info("Using TIG_CONTRASTIVE model for training.")
             return train_contrastive(self.model, self.train_loader, self.val_loader, self.config)
-        
         if self.model_name == 'TESTMODEL':
             logger.info("Using TESTMODEL model for training.")
             return train_contrastive(self.model, self.train_loader, self.val_loader, self.config)
@@ -123,7 +125,7 @@ def train_contrastive(model, train_loader, val_loader, config):
 
         total_fet_time += epoch_fet_time
         total_cct_time += epoch_cct_time
-
+        
         # 验证阶段
         model.eval()
         total_val_loss = 0
@@ -173,6 +175,81 @@ def train_contrastive(model, train_loader, val_loader, config):
 
     return total_train_time, total_fet_time, total_cct_time
 
+def train_contrastive(model, train_loader, config):
+    logger.info("==================Start Training==================")
+
+    min_val_loss = float('inf')
+    best_model_state = None
+    patience_counter = 0
+
+    device = torch.device(config.hyperparameters.device if torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+
+    torch.save(model.state_dict(), f'{config.output_settings.initial_model_path}')
+    logger.info(f'初始模型已保存: {config.output_settings.initial_model_path}')
+
+    lr = config.hyperparameters.learning_rate
+    if config.hyperparameters.optimizer == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    # 训练时间统计
+    total_train_start_time = time.time()
+    total_fet_time = 0
+    total_cct_time = 0
+
+    for epoch in range(config.hyperparameters.epochs):
+        total_train_loss = 0
+        epoch_fet_time = 0
+        epoch_cct_time = 0
+
+        for batch_idx, (data1, data2) in enumerate(train_loader):
+            model.train()
+            data1 = data1.to(device)
+            data2 = data2.to(device)
+
+            # 前向传播
+            fet_start_time = time.time()
+            loss, z1, z2 = model(data1, data2)
+            fet_end_time = time.time()
+
+            # 反向传播
+            cct_start_time = time.time()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            cct_end_time = time.time()
+
+            total_train_loss += loss.item()
+
+            epoch_fet_time += (fet_end_time - fet_start_time)
+            epoch_cct_time += (cct_end_time - cct_start_time)
+
+        total_fet_time += epoch_fet_time
+        total_cct_time += epoch_cct_time
+        
+
+        avg_train_loss = total_train_loss / len(train_loader)
+
+        if logger:   
+            logger.info(f'Epoch {epoch+1}/{config.hyperparameters.epochs}, Train Loss: {avg_train_loss:.4f}, FET(正向传播): {epoch_fet_time:.4f}s, CCT(反向传播): {epoch_cct_time:.4f}s')
+        else:
+            print(f'Epoch {epoch+1}/{config.hyperparameters.epochs}, Train Loss: {avg_train_loss:.4f}, FET(正向传播): {epoch_fet_time:.4f}s, CCT(反向传播): {epoch_cct_time:.4f}s')
+
+    total_train_end_time = time.time()
+    total_train_time = total_train_end_time - total_train_start_time
+
+    if logger:
+        logger.info(f"\n训练时间统计:")
+        logger.info(f"总训练时间: {total_train_time:.4f}s")
+        logger.info(f"总FET时间(正向传播): {total_fet_time:.4f}s")
+        logger.info(f"总CCT时间(反向传播): {total_cct_time:.4f}s")
+        logger.info(f"平均每epoch FET时间: {total_fet_time/(epoch+1):.4f}s")
+        logger.info(f"平均每epoch CCT时间: {total_cct_time/(epoch+1):.4f}s")
+    
+    torch.save(best_model_state, f'{config.output_settings.best_model_path}')
+    logger.info(f'最佳模型已保存: {config.output_settings.best_model_path}')
+
+    return total_train_time, total_fet_time, total_cct_time
 
 def finetune_supervised(model, train_loader, val_loader, config):
     """
@@ -329,8 +406,6 @@ def finetune_supervised(model, train_loader, val_loader, config):
     logger.info(f'最佳验证准确率: {best_val_acc:.2f}%')
     
     return total_train_time, total_fet_time, total_cct_time, best_val_acc
-
-
 
 # 从训练数据中为每个类别选择 n 个样本
 def create_n_shot_dataset(loader, n_shot):

@@ -3,7 +3,7 @@ defaults:
   - model: TESTMODEL
   - _self_
 
-graph: "FG" # "TIG" or "FG"
+graph: "TIG" # "TIG" or "FG"
 mode: "both" # "pretrain" or "finetune" or "both"
 pretrained_model_path: ""
 

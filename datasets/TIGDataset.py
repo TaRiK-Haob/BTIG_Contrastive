@@ -184,8 +184,11 @@ class TIGDataset(Dataset):
             line_aug1 = TGA.SubGraph(line_aug1)
             line_aug1 = TGA.SubGraph(line_aug2)
 
-            g_aug1 = TGA.feature_masking(self._build_graph(line_aug1))
-            g_aug2 = TGA.feature_masking(self._build_graph(line_aug2))
+        g_aug1 = self._build_graph(line_aug1)
+        g_aug2 = self._build_graph(line_aug2)
+
+            # g_aug1 = TGA.feature_masking(self._build_graph(line_aug1))
+            # g_aug2 = TGA.feature_masking(self._build_graph(line_aug2))
 
         # * Build the original graph and the augmented graph
         # g = self._build_graph(line)

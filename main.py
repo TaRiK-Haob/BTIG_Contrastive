@@ -3,6 +3,7 @@ from models import get_model
 from datasets import get_dataloader
 from trainer import Trainer
 import logging
+from tester import Tester
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,10 @@ def main(cfg):
         trainer.finetune(cfg.output_settings.best_model_path)
     else:
         raise ValueError(f"Unknown mode: {mode}. Use 'pretrain', 'finetune', or 'both'")
+    
+    tester = Tester(cfg)
+    logger.info("Starting testing...")
+    tester.test()
 
 if __name__ == "__main__":
     main()
